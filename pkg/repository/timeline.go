@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"go-workshop-example/pkg/adapter"
@@ -14,14 +13,13 @@ const PageSize = 100
 
 type ITimeline interface {
 	FetchTimeline(hashtag string, cursor *string) ([]entity.Thread, *string, error)
-	PublishTimeline(ctx context.Context, thread *entity.ThreadPayload) error
 }
 
 type timeline struct {
-	rabbitmqAdapter adapter.IRabbitMQAdapter
+	rabbitmqAdapter adapter.MessageBroker
 }
 
-func NewTimeline(rabbitmqAdapter adapter.IRabbitMQAdapter) *timeline {
+func NewTimeline(rabbitmqAdapter adapter.MessageBroker) *timeline {
 	return &timeline{
 		rabbitmqAdapter: rabbitmqAdapter,
 	}
@@ -32,6 +30,7 @@ type TimelineResponse struct {
 	NextPage *string         `json:"next_page"`
 }
 
+// Todo -> Go to adapter
 func (timeline) FetchTimeline(hashtag string, cursor *string) ([]entity.Thread, *string, error) {
 	url := fmt.Sprintf("https://go-workshop-2zcpzmfnyq-de.a.run.app/thread/?hashtag=%s&page_size=%d", hashtag, PageSize)
 	if cursor != nil {
@@ -61,13 +60,4 @@ func (timeline) FetchTimeline(hashtag string, cursor *string) ([]entity.Thread, 
 		return nil, nil, err
 	}
 	return response.Data, response.NextPage, nil
-}
-
-func (t timeline) PublishTimeline(ctx context.Context, thread *entity.ThreadPayload) error {
-	body, err := json.Marshal(*thread)
-	if err != nil {
-		return err
-	}
-	err = t.rabbitmqAdapter.Publish(ctx, "workshop:hashtag", "workshop:hashtag:result", body)
-	return err
 }

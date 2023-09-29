@@ -17,7 +17,7 @@ func NewMongoDBConnection(ctx context.Context, uri string) (*mongo.Client, error
 	return client, nil
 }
 
-type IMongoDBAdapter interface {
+type IMongoDB interface {
 	FindOne(ctx context.Context, collection IMongoCollection, result interface{}, filter interface{}, opts ...*options.FindOneOptions) error
 	Find(ctx context.Context, collection IMongoCollection, result interface{}, filter interface{}, opts ...*options.FindOptions) error
 	InsertOne(ctx context.Context, collection IMongoCollection, document interface{}, opts ...*options.InsertOneOptions) (*primitive.ObjectID, error)
@@ -31,7 +31,7 @@ type IMongoDBAdapter interface {
 
 type mongodb struct{ mongoClient *mongo.Client }
 
-func NewMongoDBAdapter(mongoClient *mongo.Client) *mongodb {
+func NewMongoDB(mongoClient *mongo.Client) *mongodb {
 	return &mongodb{mongoClient}
 }
 

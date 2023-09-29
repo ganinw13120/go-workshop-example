@@ -1,17 +1,14 @@
 package usecase
 
 import (
-	"context"
 	"fmt"
 	"go-workshop-example/pkg/entity"
 	"go-workshop-example/pkg/repository"
 	"sync"
-	"time"
 )
 
 type ITimeline interface {
 	FetchTimelineFromHashtag(hashtag entity.Hastag) ([]*entity.ThreadPayload, error)
-	Publish(threads []*entity.ThreadPayload) error
 }
 
 type timeline struct {
@@ -36,20 +33,6 @@ func (t timeline) fetchThreadAccount(thread entity.Thread) (*entity.ThreadPayloa
 		Account: *account,
 	}
 	return &result, nil
-}
-
-func (t timeline) Publish(threads []*entity.ThreadPayload) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	for _, thread := range threads {
-		err := t.timelineRepo.PublishTimeline(ctx, thread)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (t timeline) FetchTimelineFromHashtag(hashtag entity.Hastag) ([]*entity.ThreadPayload, error) {

@@ -14,12 +14,12 @@ type IHashtag interface {
 }
 
 type hashtag struct {
-	mongoDBAdapter    adapter.IMongoDBAdapter
+	mongoDBAdapter    adapter.IMongoDB
 	hashtagCollection adapter.IMongoCollection
-	rabbitmqAdapter   adapter.IRabbitMQAdapter
+	rabbitmqAdapter   adapter.MessageBroker
 }
 
-func NewHashtag(mongoDBAdapter adapter.IMongoDBAdapter, hashtagCollection adapter.IMongoCollection, rabbitmqAdapter adapter.IRabbitMQAdapter) *hashtag {
+func NewHashtag(mongoDBAdapter adapter.IMongoDB, hashtagCollection adapter.IMongoCollection, rabbitmqAdapter adapter.MessageBroker) *hashtag {
 	return &hashtag{
 		mongoDBAdapter:    mongoDBAdapter,
 		hashtagCollection: hashtagCollection,

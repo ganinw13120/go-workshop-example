@@ -13,10 +13,13 @@ import (
 func main() {
 	cfg := config.NewConfig()
 
+	mongoCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongodbClient, err := adapter.NewMongoDBConnection(ctx, cfg.MongoDBURI)
+	mongodbClient, err := adapter.NewMongoDBConnection(mongoCtx, cfg.MongoDBURI)
 	if err != nil {
 		panic(err)
 	}
@@ -25,10 +28,13 @@ func main() {
 			panic(err)
 		}
 	}()
-	mongoDBAdapter := adapter.NewMongoDBAdapter(mongodbClient)
+	mongoDBAdapter := adapter.NewMongoDB(mongodbClient)
 	hashtagCollection := mongodbClient.Database("go-workshop").Collection("hashtags")
 
-	rabbitmqAdapter := adapter.NewRabbitMQAdapter()
+	rabbitmqAdapter, err := adapter.NewRabbitMQ("amqp://root:root@localhost:5672/", adapter.QueueConfig{})
+	if err != nil {
+		panic(err)
+	}
 	defer rabbitmqAdapter.CleanUp()
 
 	hashtagRepo := repository.NewHashtag(mongoDBAdapter, hashtagCollection, rabbitmqAdapter)

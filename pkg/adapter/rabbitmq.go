@@ -6,38 +6,103 @@ import (
 	"log"
 )
 
-type IRabbitMQAdapter interface {
+type MessageBroker interface {
 	Publish(ctx context.Context, exchange, routing string, payload []byte) error
 	Consume(queue string, cb func([]byte)) error
 }
 
-type rabbitmqAdapter struct {
+type QueueConfig struct {
+	QueueName    string
+	ExchangeName string
+	ExchangeType string
+}
+
+type rabbitmq struct {
 	conn *amqp.Connection
 	ch   *amqp.Channel
 }
 
-func NewRabbitMQAdapter() *rabbitmqAdapter {
-	conn, err := amqp.Dial("amqp://root:root@localhost:5672/")
+func NewRabbitMQ(url string, config QueueConfig) (*rabbitmq, error) {
+	conn, err := amqp.Dial(url)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	ch, err := conn.Channel()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &rabbitmqAdapter{
+	q := &rabbitmq{
 		conn,
 		ch,
 	}
+
+	q.createAndBindQueue(config)
+
+	return q, nil
 }
 
-func (r *rabbitmqAdapter) CleanUp() {
+func (q rabbitmq) createAndBindQueue(queueConfig QueueConfig) error {
+	err := q.declareExchange(queueConfig.ExchangeName, queueConfig.ExchangeType)
+	if err != nil {
+		return err
+	}
+	err = q.declareQueue(queueConfig.QueueName)
+	if err != nil {
+		return err
+	}
+	routingKey := ""
+	if queueConfig.ExchangeType == "direct" {
+		routingKey = queueConfig.QueueName
+	}
+	err = q.bindQueue(queueConfig.QueueName, routingKey, queueConfig.ExchangeName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (q rabbitmq) declareExchange(exchangeName string, exchangeType string) error {
+	err := q.ch.ExchangeDeclare(
+		exchangeName, // name
+		exchangeType, // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
+	)
+	return err
+}
+
+func (q rabbitmq) declareQueue(queueName string) error {
+	_, err := q.ch.QueueDeclare(
+		queueName, // name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	return err
+}
+
+func (q rabbitmq) bindQueue(queueName string, routingKey string, exchangeName string) error {
+	err := q.ch.QueueBind(
+		queueName,    // queue name
+		routingKey,   // routing key
+		exchangeName, // exchange
+		false,
+		nil)
+	return err
+}
+
+func (r *rabbitmq) CleanUp() {
 	r.ch.Close()
 	r.conn.Close()
 }
 
-func (r rabbitmqAdapter) Consume(queue string, cb func([]byte)) error {
+func (r rabbitmq) Consume(queue string, cb func([]byte)) error {
 	msgs, err := r.ch.Consume(
 		queue, // queue
 		"",    // consumer
@@ -66,7 +131,7 @@ func (r rabbitmqAdapter) Consume(queue string, cb func([]byte)) error {
 	return nil
 }
 
-func (r rabbitmqAdapter) Publish(ctx context.Context, exchange, routing string, payload []byte) error {
+func (r rabbitmq) Publish(ctx context.Context, exchange, routing string, payload []byte) error {
 	err := r.ch.PublishWithContext(ctx,
 		exchange,
 		routing,
